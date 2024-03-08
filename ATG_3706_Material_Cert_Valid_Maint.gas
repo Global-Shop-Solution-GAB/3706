@@ -1,0 +1,195 @@
+Program.Sub.ScreenSU.Start
+gui.F_Main..create
+gui.F_Main..caption("Material Certification Setup")
+gui.F_Main..size(8310,8175)
+gui.F_Main..position(0,0)
+gui.F_Main..event(unload,form1_unload)
+gui.F_Main..alwaysontop(False)
+gui.F_Main..fontname("Arial")
+gui.F_Main..fontsize(8)
+gui.F_Main..forecolor(0)
+gui.F_Main..fontstyle(,,,,)
+gui.F_Main..BackColor(-2147483633)
+gui.F_Main..controlbox(True)
+gui.F_Main..maxbutton(False)
+gui.F_Main..minbutton(True)
+gui.F_Main..mousepointer(0)
+gui.F_Main..moveable(True)
+gui.F_Main..sizeable(True)
+gui.F_Main..ShowInTaskBar(True)
+gui.F_Main..titlebar(True)
+gui.F_Main.fgValues.create(gsflexgrid)
+gui.F_Main.fgValues.FixedRows(0)
+gui.F_Main.fgValues.FixedCols(0)
+gui.F_Main.fgValues.visible(True)
+gui.F_Main.fgValues.size(7890,6330)
+gui.F_Main.fgValues.zorder(0)
+gui.F_Main.fgValues.position(100,725)
+gui.F_Main.fgValues.enabled(True)
+gui.F_Main.cmdSave.create(button)
+gui.F_Main.cmdSave.caption("Save")
+gui.F_Main.cmdSave.visible(True)
+gui.F_Main.cmdSave.size(855,375)
+gui.F_Main.cmdSave.zorder(0)
+gui.F_Main.cmdSave.position(100,7090)
+gui.F_Main.cmdSave.enabled(True)
+gui.F_Main.cmdSave.fontname("Arial")
+gui.F_Main.cmdSave.fontsize(8)
+gui.F_Main.cmdSave.event(click,cmdsave_click)
+gui.F_Main.cmdBrw.create(button)
+gui.F_Main.cmdBrw.caption("^")
+gui.F_Main.cmdBrw.visible(True)
+gui.F_Main.cmdBrw.size(315,315)
+gui.F_Main.cmdBrw.zorder(0)
+gui.F_Main.cmdBrw.position(2900,285)
+gui.F_Main.cmdBrw.enabled(True)
+gui.F_Main.cmdBrw.fontname("Arial")
+gui.F_Main.cmdBrw.fontsize(8)
+gui.F_Main.cmdBrw.event(click,cmdbrw_click)
+gui.F_Main.txt1.create(textbox,"",True,2685,300,0,100,300,True,0,Arial,8,-2147483643,1)
+gui.F_Main.lbl1.create(label,"Material Group",True,1935,255,1,100,100,True,0,Arial,8,-2147483633,0)
+gui.F_Main.cmdNew.create(button)
+gui.F_Main.cmdNew.caption("New")
+gui.F_Main.cmdNew.visible(True)
+gui.F_Main.cmdNew.size(855,375)
+gui.F_Main.cmdNew.zorder(0)
+gui.F_Main.cmdNew.position(1015,7100)
+gui.F_Main.cmdNew.enabled(True)
+gui.F_Main.cmdNew.fontname("Arial")
+gui.F_Main.cmdNew.fontsize(8)
+gui.F_Main.cmdNew.event(click,cmdnew_click)
+
+
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+
+
+Variable.Global.iActiveGrp.Declare(Long,0)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+'Run from Custom Hook
+F.ODBC.Connection!conx.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+F.Intrinsic.Control.CallSub(Setupgrid)
+
+Gui.F_Main..Show
+
+Program.Sub.Main.End
+
+program.sub.form1_unload.start
+F.ODBC.Connection!conx.Close
+
+F.Intrinsic.Control.End
+
+program.sub.form1_unload.end
+
+program.sub.cmdbrw_click.start
+V.Local.sCol.Declare(String)
+V.Local.sWidth.Declare(String)
+
+V.Local.sret.Declare(String)
+V.Local.squery.Declare(String)
+V.Local.shold.Declare(String)
+
+F.Intrinsic.String.Split("1000*!*3500","*!*",V.Local.swidth)
+F.Intrinsic.String.Split("ID*!*Description","*!*",V.Local.sCol)
+
+V.Local.squery.Set("SELECT DISTINCT MATERIAL_ID, DESCRIPTION FROM ATG_3706_MTRIAL_GRPS ORDER BY DESCRIPTION")
+
+F.intrinsic.UI.Browser("Select Material Group","conx",V.Local.squery,V.Local.sCol,V.Local.sWidth,V.Local.sret)
+F.Intrinsic.Control.If(V.Local.sret,<>,"***CANCEL***")
+	F.Intrinsic.string.Split(V.Local.sret,"*!*",V.Local.sRet)
+	V.Global.iActiveGrp.Set(V.Local.sret(0))
+	Gui.f_main.txt1.Text(V.Local.sret(1).Trim)
+	F.Intrinsic.Control.CallSub(Setupgrid)
+	F.Intrinsic.String.Concat("SELECT MATERIAL, MIN_VAL,MAX_VAL FROM ATG_3706_MTRIAL_CRTS WHERE MATERIAL_ID = ",V.Global.iActiveGrp," ORDER BY MATERIAL_SEQUENCE",V.Local.squery)
+	F.ODBC.Connection!conx.OpenRecordsetRO("rst",V.Local.squery)
+	Gui.f_main.fgValues.LoadRecordset("conx!rst",0)
+	Gui.F_Main.fgValues.Rows(26)
+	Gui.F_Main.fgValues.FixedRows(1)
+	F.ODBC.conx!rst.Close
+
+F.Intrinsic.Control.endif
+
+program.sub.cmdbrw_click.end
+
+program.sub.cmdsave_click.start
+V.Local.sQuery.Declare(String)
+V.Local.sTemp.Declare(String)
+V.Local.sData.Declare(String)
+V.Local.sCells.Declare(String)
+V.Local.iRows.Declare(Long)
+V.Local.iRow.Declare(Long)
+
+Gui.F_Main.fgValues.Commit
+
+F.Intrinsic.Control.If(V.Global.iActiveGrp,=,0)
+	F.ODBC.Connection!conx.OpenRecordsetRW("rst","SELECT * FROM ATG_3706_MTRIAL_GRPS")
+	F.ODBC.conx!rst.AddNew
+	F.Intrinsic.String.Left(V.Screen.F_Main!txt1.text,50,V.Local.sTemp)
+	F.ODBC.conx!rst.Set!DESCRIPTION(V.Local.sTemp)
+	F.ODBC.conx!rst.Update
+	F.ODBC.conx!rst.Close
+	F.ODBC.Connection!conx.OpenRecordsetRO("rst","SELECT TOP 1 MATERIAL_ID FROM ATG_3706_MTRIAL_GRPS ORDER BY MATERIAL_ID DESC")
+	F.Intrinsic.Control.if(V.ODBC.conx!rst.EOF,=,False)
+		V.Global.iActiveGrp.Set(V.ODBC.conx!rst.FieldVal!MATERIAL_ID)
+	F.Intrinsic.Control.EndIf
+	F.ODBC.Conx!rst.Close
+F.Intrinsic.Control.EndIf
+
+V.Local.iRows.Set(V.Screen.F_Main!fgValues.Rows)
+V.Local.iRows.Set(V.Local.iRows.--)
+
+F.Intrinsic.Control.For(V.Local.iRow,1,V.Local.iRows,1)
+	Gui.F_Main.fgValues.ReadRow(V.Local.iRow,V.Local.sdata)
+	
+	F.Intrinsic.String.Split(V.Local.sData,"*!*",V.Local.sCells)
+	F.Intrinsic.Control.If(V.Local.scells(0).Trim,<>,"")
+		F.Intrinsic.String.Concat("SELECT * FROM ATG_3706_MTRIAL_CRTS WHERE MATERIAL_ID = ",V.global.iActiveGrp," AND MATERIAL_SEQUENCE = ",V.Local.iRow,V.Local.sQuery)
+		F.ODBC.Connection!conx.OpenRecordsetRW("rst",V.Local.sQuery)
+		F.Intrinsic.Control.If(V.ODBC.conx!rst.EOF,=,True)
+			F.ODBC.conx!rst.AddNew
+			F.ODBC.conx!rst.Set!MATERIAL_ID(V.Global.iActiveGrp)
+			F.ODBC.conx!rst.Set!MATERIAL_SEQUENCE(V.local.iRow)
+
+		F.Intrinsic.Control.EndIf
+		'TODO LEFT ON DATA
+'		F.Intrinsic.String.Left(V.Local.sData(0),80,V.Local.sData(0))
+
+		F.ODBC.conx!rst.Set!MATERIAL(V.Local.scells(0))
+		F.ODBC.conx!rst.Set!MIN_VAL(V.Local.scells(1))
+		F.ODBC.conx!rst.Set!MAX_VAL(V.Local.scells(2))
+		F.ODBC.Conx!rst.Update
+		F.ODBC.conx!rst.Close
+	F.Intrinsic.Control.EndIf
+F.Intrinsic.Control.Next(V.Local.iRow)
+F.Intrinsic.UI.Msgbox("Saved")
+
+program.sub.cmdsave_click.end
+
+Program.Sub.SetupGrid.Start
+Gui.F_Main.fgValues.Cols(3)
+Gui.F_Main.fgValues.Rows(1)
+
+Gui.F_Main.fgValues.Rows(26)
+Gui.F_Main.fgValues.SetProperty("Enter",2)
+Gui.F_Main.fgvalues.FixedRows(1)
+Gui.F_Main.fgValues.ColWidth(0,4000)
+Gui.F_Main.fgValues.ColWidth(1,1000)
+Gui.F_Main.fgValues.ColWidth(2,1000)
+Gui.F_Main.fgValues.TextMatrix(0,0,"Material Element")
+Gui.F_Main.fgValues.TextMatrix(1,0,"Min Value")
+Gui.F_Main.fgValues.TextMatrix(2,0,"Max Value")
+
+Program.Sub.SetupGrid.End
+
+program.sub.cmdnew_click.start
+
+F.Intrinsic.Control.CallSub(Setupgrid)
+V.Global.iActiveGrp.Set(0)
+Gui.F_Main.txt1.Text("")
+
+program.sub.cmdnew_click.end
+
+
